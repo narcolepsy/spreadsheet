@@ -890,6 +890,7 @@ class Reader
           #puts "\nDEBUG: found Note Obj record"
           @noteObject         = NoteObject.new
           @noteObject.objID   = _objID
+          textlength          = 0 # reset the text count here
         end
         #p work
       when :drawing # this can be followed by txo in case of a note
@@ -901,8 +902,11 @@ class Reader
         if previous == :drawing
           #puts "\nDEBUG: found TxO record"
           #p work
+          grbit1, rot1, rsvd1, rsvd2, textlength, cbruns1, rsvd3 = work.unpack('vvVvvvv2')
+          #p "grbit = #{grbit1} rot = #{rot1} rsvd1(0's!) = #{rsvd1} textlength = #{textlength} cbruns = #{cbruns1} rsvd2(0's!) = #{rsvd2}"
         end
       when :continue # this contains the actual note text
+         #this will be followed by a second continue record - full of formatting
         if previous == :txo
           #puts "\nDEBUG: found Continue record"
           continueFmt = work.unpack('C')
@@ -917,6 +921,23 @@ class Reader
              @noteObject.text = _text.pack('U*')
           end
           @noteObjList << @noteObject
+        end
+        #We have to deal with mad comments over 8223 chars (+header)
+        if (previous == :continue && textlength > 8223)
+          #puts "\nDEBUG: at second continue record"
+          continueFmt = work.unpack('C')
+          if (continueFmt.first == 0)
+             #puts "Picking compressed charset"
+             #Skip to offset due to 'v5C' used above
+             _text = work.unpack('@1C*')
+             @noteObjList.last.text << _text.pack('C*')
+          elsif (continueFmt.first == 1)
+             #puts "Picking uncompressed charset"
+             _text = work.unpack('@1S*')
+             @noteObjList.last.text << _text.pack('U*')
+          end
+          #now decrement the textlength so that we don't get the format continue string appended
+          textlength -= 8223
         end
       when :pagesetup
         read_pagesetup(worksheet, work, pos, len)
