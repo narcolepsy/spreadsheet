@@ -846,6 +846,7 @@ class Reader
     @noteObjList = []
     @noteList = []
     previous = nil
+    textlength = 0 # reset the text count here
     while tuple = get_next_chunk
       pos, op, len, work = tuple
       if((offset = @current_row_block_offset) && !in_row_block?(op, previous))
@@ -890,7 +891,6 @@ class Reader
           #puts "\nDEBUG: found Note Obj record"
           @noteObject         = NoteObject.new
           @noteObject.objID   = _objID
-          textlength          = 0 # reset the text count here
         end
         #p work
       when :drawing # this can be followed by txo in case of a note
